@@ -22,9 +22,7 @@ jobs:
         run: pip install -r requirements.txt
       
       - name: Download model
-        run: |
-          timeout 60 python microphone.py || true
-        continue-on-error: true
+        run: python download_model.py
       
       - name: Build macOS app
         run: |
@@ -54,12 +52,7 @@ jobs:
         run: pip install -r requirements.txt
       
       - name: Download model
-        run: |
-          Start-Process python -ArgumentList "microphone.py" -NoNewWindow
-          Start-Sleep -Seconds 60
-          Stop-Process -Name python -Force -ErrorAction SilentlyContinue
-        shell: powershell
-        continue-on-error: true
+        run: python download_model.py
       
       - name: Build Windows app
         run: |
