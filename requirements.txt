@@ -1,0 +1,6 @@
+sounddevice
+numpy
+tensorflow
+tensorflow-hub
+pandas
+pyinstaller

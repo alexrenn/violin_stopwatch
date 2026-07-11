@@ -1,0 +1,77 @@
+name: Build Apps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Download model
+        run: |
+          timeout 60 python microphone.py || true
+        continue-on-error: true
+      
+      - name: Build macOS app
+        run: |
+          pyinstaller --onefile --windowed \
+            --name "Violin Stopwatch" \
+            --add-data "yamnet_class_map.csv:." \
+            --add-data "model_cache:model_cache" \
+            microphone.py
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Violin-Stopwatch-macOS
+          path: dist/Violin Stopwatch.app
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Download model
+        run: |
+          Start-Process python -ArgumentList "microphone.py" -NoNewWindow
+          Start-Sleep -Seconds 60
+          Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+        shell: powershell
+        continue-on-error: true
+      
+      - name: Build Windows app
+        run: |
+          pyinstaller --onefile --windowed `
+            --name "Violin Stopwatch" `
+            --add-data "yamnet_class_map.csv;." `
+            --add-data "model_cache;model_cache" `
+            microphone.py
+        shell: powershell
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Violin-Stopwatch-Windows
+          path: dist/Violin Stopwatch.exe
