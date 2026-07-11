@@ -3,27 +3,42 @@ import threading
 import tkinter as tk
 import os
 import sys
+import urllib.request
 
 import sounddevice as sd
 import numpy as np
-import tensorflow_hub as hub
 import pandas as pd
 
 # Set up paths for bundled app
 if getattr(sys, 'frozen', False):
-    # Running as compiled executable
     BASE_DIR = sys._MEIPASS
-    CACHE_DIR = os.path.join(os.path.dirname(sys.executable), "model_cache")
 else:
-    # Running as script
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    CACHE_DIR = os.path.join(BASE_DIR, "model_cache")
 
-# Set TensorFlow Hub cache directory
-os.environ["TFHUB_CACHE_DIR"] = CACHE_DIR
+# Download YAMNet TFLite model if not present
+MODEL_PATH = os.path.join(BASE_DIR, "yamnet.tflite")
+MODEL_URL = "https://storage.googleapis.com/tfhub-lite-models/google/lite-model/yamnet/classification/tflite/1.tflite"
+
+if not os.path.exists(MODEL_PATH):
+    print("Downloading YAMNet model...")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    print("Model downloaded!")
+
+# Import TFLite interpreter
+try:
+    import tflite_runtime.interpreter as tflite
+    Interpreter = tflite.Interpreter
+except ImportError:
+    import tensorflow as tf
+    Interpreter = tf.lite.Interpreter
 
 print("Loading YAMNet model...")
-model = hub.load("https://tfhub.dev/google/yamnet/1")
+interpreter = Interpreter(model_path=MODEL_PATH)
+interpreter.allocate_tensors()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
 labels = pd.read_csv(os.path.join(BASE_DIR, "yamnet_class_map.csv"))
 violin_idx = labels[labels['display_name'] == 'Violin, fiddle'].index[0]
 print("Model loaded!")
@@ -39,7 +54,7 @@ def run_microphone():
     global is_playing, start_time, total_elapsed
 
     SAMPLE_RATE = 16000
-    DURATION = 0.5
+    DURATION = 0.975  # YAMNet expects ~0.975 second clips (15600 samples)
 
     while running:
         try:
@@ -51,10 +66,14 @@ def run_microphone():
             )
             sd.wait()
 
-            waveform = np.squeeze(audio)
-            scores, _, _ = model(waveform)
-            mean_scores = scores.numpy().mean(axis=0)
-            confidence = mean_scores[violin_idx]
+            waveform = np.squeeze(audio).astype(np.float32)
+            
+            # Run inference with TFLite
+            interpreter.set_tensor(input_details[0]['index'], waveform)
+            interpreter.invoke()
+            scores = interpreter.get_tensor(output_details[0]['index'])
+            
+            confidence = scores[0][violin_idx]
 
             print(f"Violin confidence: {confidence:.4f}")
 

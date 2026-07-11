@@ -1,0 +1,3 @@
+Module: https://tfhub.dev/google/yamnet/1
+Download Time: 2026-07-10 22:43:56.556031
+Downloader Hostname: AlexandrasAir4 (PID:77103)

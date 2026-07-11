@@ -29,7 +29,7 @@ jobs:
           pyinstaller --onefile --windowed \
             --name "Violin Stopwatch" \
             --add-data "yamnet_class_map.csv:." \
-            --add-data "model_cache:model_cache" \
+            --add-data "yamnet.tflite:." \
             microphone.py
       
       - name: Upload macOS artifact
@@ -59,7 +59,7 @@ jobs:
           pyinstaller --onefile --windowed `
             --name "Violin Stopwatch" `
             --add-data "yamnet_class_map.csv;." `
-            --add-data "model_cache;model_cache" `
+            --add-data "yamnet.tflite;." `
             microphone.py
         shell: powershell
       
